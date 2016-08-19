@@ -1,136 +1,151 @@
 ﻿// ==UserScript==
-// @name        Blacklist Blocker Mod
-// @description Block page content by blacklist
-// @namespace   qixinglu.com
-// @grant       none
-/// @require    https://raw.githubusercontent.com/muzuiget/greasemonkey-scripts/master/blacklist_blocker.user.js
-// @include     http://www.smzdm.com/*
-// @include     https://v2ex.com/
-/// @include     http://tieba.baidu.com/f?kw=*
-// @version     0.9
-// @note     	fork from muzuiget
-// @updateURL https://github.com/flandy/user.js/raw/master/meta/blacklist_blocker_mod.meta.js
-// @downloadURL https://github.com/flandy/user.js/raw/master/blacklist_blocker_mod.user.js
+// @name	Blacklist Blocker Mod
+// @description	Block page content by blacklist
+// @namespace	flandy
+// @include	http://www.smzdm.com/*
+// @include	http://faxian.smzdm.com/*
+// @include	/^https?:\/\/(?:www\.)?v2ex\.com\/$/
+/// @include	http://tieba.baidu.com/f?kw=*
+// @include	http://tieba.baidu.com/p/*
+// @version	1.0
+// @grant	none
+// @run-at	document-start
+// @updateURL	https://github.com/flandy/user.js/raw/master/meta/blacklist_blocker_mod.meta.js
+// @downloadURL	https://github.com/flandy/user.js/raw/master/blacklist_blocker_mod.user.js
+// @note	ref: https://raw.githubusercontent.com/muzuiget/greasemonkey-scripts/master/blacklist_blocker.user.js
 // ==/UserScript==
 
-;(function () {
+// rules
+let rules = [{
+		urls : ['http://www.smzdm.com/', 'http://faxian.smzdm.com/'], // 网址或正则
+		test : false, // 测试模式 开启时会用红框标出要被隐藏的内容
+		node : '#feed-main-list>.feed-row-wide,.leftWrap.discovery_list>.list', // CSS限定作用范围，全网页开启可用'body *'
+		observe : true,	// 监测DOM变化，可传入{tar:..,opt:{..}}
+		hide : function (node) {	// 满足屏蔽条件返回true
+			let keywords = [/[婴幼](?:儿|用品)/, '纸尿裤',];
+			if (xcontains.call(node, '.feed-block-title, .z-feed-title,.listItem>.itemName', keywords))
+				return true;
+			return false;
+		},
+	}, {
+		urls : /^https?:\/\/(?:www\.)?v2ex\.com\/$/i,
+		test : true,
+		node : '.cell.item',
+		hide : function (node) {
+			let keywords = [
+				'二手交易', /[小红]米/, 'vmware', 
+				/(?:如何|怎么|怎样)(?:评价|看)/,
+			];
+			if (xcontains.call(node, 'table', keywords))
+				return true;
+			return false;
+		}
+	}, {
+		urls : /^http:\/\/tieba\.baidu\.com\/f\?kw=*/i,
+		test : true,
+		node : '#pagelet_live\\/pagelet\\/live',
+		hide : function (node) {
+			if (!xcontains.call(node, ' .topic_thread_danmu'))
+				return true;
+			return false;
+		}
+	}, { // ref: p/4735922851
+		urls : /^http:\/\/tieba\.baidu\.com\/p\/*/i,
+		node : '.l_post',
+		observe : {tar : '#j_p_postlist'},
+		hide : function (node) {
+			var json = null;
+			try {
+				json = JSON.parse(node.dataset.field);
+			} catch (ex) {
+				return false;
+			}
+			return json.author.user_id == json.content.post_id || 
+				json.content.thread_id == json.content.post_id;
+		}
+	},
+];
+
+// execute
+addEventListener('DOMContentLoaded', BlacklistBlocker(rules).run);
+
+
+// funcs
+function to_regExp(p) {
+	if (typeof(p) === 'string')
+		return new RegExp(p);
+	else
+		return p;
+}
+
+function xcontains(selector, keywords) {
+	// only use selector
+	if (arguments.length === 1) {
+		return !!this.querySelector(selector);
+	}
+	if (!Array.isArray(keywords)) {
+		keywords = [keywords];
+	}
+	for (let child of this.querySelectorAll(selector)) {
+		let text = child.textContent.trim();
+		for (let keyword of keywords) {
+			if (to_regExp(keyword).test(text)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+	
+function BlacklistBlocker(rules) {
 	'use strict';
 	
-// funcs
-	let to_regExp = p => {
-		if(typeof(p) === 'string') return new RegExp(p);
-		else return p;
+	let applyRule = function (rule) {
+		for (let node of document.querySelectorAll(rule.node)) {
+			if (!rule.hide(node)) {
+				continue;
+			}
+			if (rule.test) {
+				node.style.boxShadow = '0 0 2px 2px #FF5555';
+			} else {
+				node.remove();
+			}
+		}
 	};
-	
-	let nodeFunc = {
-		xcontains: function(selector, keywords) {
-			// only use selector
-			if (arguments.length === 1) {
-				return this.querySelectorAll(selector).length > 0;
-			}
-			
-			if (!Array.isArray(keywords)) {
-				keywords = [keywords];
-			}
-			for (let child of this.querySelectorAll(selector)) {
-				let text = child.textContent;
-				for (let keyword of keywords) {
-					if (to_regExp(keyword).test(text)) {
-						return true;
-					}
-				}
-			}
-			return false;
-		},
-	};
-	
-	let BlacklistBlocker = function(rules) {
-	
-		let mixin = function(target, mixinObject) {
-			for (let [name, prop] of Iterator(mixinObject)) {
-				target[name] = prop;
-			}
-		};
-	
-		let applyRule = function(rule) {
-			for (let node of document.querySelectorAll(rule.node)) {
-				if (!rule.hide(node)) {
-					continue;
-				}
-				if (rule.test) {
-					node.style.boxShadow = '0 0 2px 2px #FF5555';
-				} else {
-					node.remove();
-				}
-			}
-		};
+	let addWatch = function (rule) {
+		var watchContent = rule.observe;
+		if(!watchContent) return;
+		var tar = document.querySelector(watchContent.tar),
+			opt = watchContent.opt;
+		tar = tar || document.querySelector(rule.node).parentNode;
+		opt = opt || {childList: true};
 		
-		let isMatchUrls = function(urls) {
-			if (!Array.isArray(urls)) {
-				urls = [urls];
-			}
-			for (let url of urls) {
-				if (to_regExp(url).test(location.href)) {
-					return true;
-				}
-			}
-			return false;
-		};
-	
-		let avaiableRules = rules.filter((e) => isMatchUrls(e.urls));
-		let run = () => avaiableRules.forEach(applyRule);
-	
-		let exports = {
-			run: run,
-		};
-		return exports;
+		var obv = new MutationObserver(()=>applyRule(rule));
+		obv.observe(tar, opt);
+		return obv;		// disconnect() can be used elsewhere
 	};
 	
-// rules
-	let rules = [
-	{
-		urls: ['http://www.smzdm.com/', 'http://fx.smzdm.com/'],	// 网址或正则
-		test: false,		// 测试模式 开启时会用红框标出要被隐藏的内容
-		node: '.leftWrap .list[articleid]',		// CSS限定作用范围，全网页开启可用'body *'
-		hide: function(node) {
-			let keywords = ['幼儿', '童', '婴儿','纸尿裤',];
-			if(nodeFunc.xcontains.call(node, '.itemName', keywords))
-				return true;
-			
-			return false;
-		},
-		watch: null,
-	},
-	{
-		urls: /^https:\/\/v2ex\.com\/$/i,
-		test: true,
-		node: '.cell.item',
-		hide: function(node) {
-			let keywords = [
-				'二手交易', '小米', '红米',
-				'如何评价', '如何看待', '怎么评价', '怎么看', '怎样理解'
-			];
-			if(nodeFunc.xcontains.call(node, 'table', keywords))
-				return true;
-			
-			return false;
+	let isMatchUrls = function (urls) {
+		if (!Array.isArray(urls)) {
+			urls = [urls];
 		}
-	},
-	{
-		urls: /^http:\/\/tieba\.baidu\.com\/f\?kw=*/i,
-		test: false,
-		node: '#pagelet_live\\/pagelet\\/live',
-		hide: function(node) {
-			if(!nodeFunc.xcontains.call(node, ' .topic_thread_danmu'))
+		for (let url of urls) {
+			if (to_regExp(url).test(location.href)) {
 				return true;
-			
-			return false;
+			}
 		}
-	},
-	];
+		return false;
+	};
+	let avaiableRules = rules.filter(e => isMatchUrls(e.urls));
 	
-// execute
-	let blocker = BlacklistBlocker(rules);
-	blocker.run();
-	window.addEventListener('scroll', blocker.run);
-})();
+	let run = function(){
+		avaiableRules.forEach(function(rule){
+			applyRule(rule);
+			addWatch(rule);
+		});
+	};
+	let exports = {
+		run : run,
+	};
+	return exports;
+}
