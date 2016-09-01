@@ -1,4 +1,4 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name	Blacklist Blocker Mod
 // @description	Block page content by blacklist
 // @namespace	flandy
@@ -20,7 +20,8 @@ let rules = [{
 		urls : ['http://www.smzdm.com/', 'http://faxian.smzdm.com/'], // 网址或正则
 		test : false, // 测试模式 开启时会用红框标出要被隐藏的内容
 		node : '#feed-main-list>.feed-row-wide,.leftWrap.discovery_list>.list', // CSS限定作用范围，全网页开启可用'body *'
-		observe : true,	// 监测DOM变化，可传入{tar:..,opt:{..}}
+		watch : true,	// 监测DOM变化，可传入{tar:..,opt:{..}}
+		//triggle : [{tar : 'window', event : 'scroll'},],
 		hide : function (node) {	// 满足屏蔽条件返回true
 			let keywords = [/[婴幼](?:儿|用品)/, '纸尿裤',];
 			if (xcontains.call(node, '.feed-block-title, .z-feed-title,.listItem>.itemName', keywords))
@@ -52,7 +53,7 @@ let rules = [{
 	}, { // ref: p/4735922851
 		urls : /^http:\/\/tieba\.baidu\.com\/p\/*/i,
 		node : '.l_post',
-		observe : {tar : '#j_p_postlist'},
+		watch : {tar : '#j_p_postlist'},
 		hide : function (node) {
 			var json = null;
 			try {
@@ -113,7 +114,7 @@ function BlacklistBlocker(rules) {
 		}
 	};
 	let addWatch = function (rule) {
-		var watchContent = rule.observe;
+		var watchContent = rule.watch;
 		if(!watchContent) return;
 		var tar = document.querySelector(watchContent.tar),
 			opt = watchContent.opt;
@@ -123,6 +124,13 @@ function BlacklistBlocker(rules) {
 		var obv = new MutationObserver(()=>applyRule(rule));
 		obv.observe(tar, opt);
 		return obv;		// disconnect() can be used elsewhere
+	};
+	let addTriggle = function (rule) {
+		if(!rule.triggle) return;
+		rule.triggle.forEach(function(obj){
+			document.querySelector(obj.tar).addEventListener(obj.event,
+			 ()=>applyRule(rule));
+		});
 	};
 	
 	let isMatchUrls = function (urls) {
@@ -142,6 +150,7 @@ function BlacklistBlocker(rules) {
 		avaiableRules.forEach(function(rule){
 			applyRule(rule);
 			addWatch(rule);
+			addTriggle(rule);
 		});
 	};
 	let exports = {
