@@ -19,7 +19,7 @@
 let rules = [{
 		urls : ['http://www.smzdm.com/', 'http://faxian.smzdm.com/'], // 网址或正则
 		test : false, // 测试模式 开启时会用红框标出要被隐藏的内容
-		node : '#feed-main-list>.feed-row-wide,.leftWrap.discovery_list>.list', // CSS限定作用范围，全网页开启可用'body *'
+		node : '#feed-main-list>.feed-row-wide,.leftWrap.discovery_list>.list', // CSS生成待选目标列表，全网页节点选择可用'body *'
 		watch : true,	// 监测DOM变化，可传入{tar:..,opt:{..}}
 		//triggle : [{tar : 'window', event : 'scroll'},],
 		hide : function (node) {	// 满足屏蔽条件返回true
@@ -128,6 +128,7 @@ function BlacklistBlocker(rules) {
 	let addTriggle = function (rule) {
 		if(!rule.triggle) return;
 		rule.triggle.forEach(function(obj){
+			obj.tar = obj.tar || 'window';
 			document.querySelector(obj.tar).addEventListener(obj.event,
 			 ()=>applyRule(rule));
 		});
