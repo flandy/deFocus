@@ -21,7 +21,7 @@ let rules = [{
 		test : false, // 测试模式 开启时会用红框标出要被隐藏的内容
 		node : '#feed-main-list>.feed-row-wide,.leftWrap.discovery_list>.list', // CSS生成待选目标列表，全网页节点选择可用'body *'
 		watch : true,	// 监测DOM变化，可传入{tar:..,opt:{..}}
-		//triggle : [{tar : 'window', event : 'scroll'},],
+		//trigger : [{tar : 'window', event : 'scroll'},],
 		hide : function (node) {	// 满足屏蔽条件返回true
 			let keywords = [/[婴幼](?:儿|用品)/, '纸尿裤',];
 			if (xcontains.call(node, '.feed-block-title, .z-feed-title,.listItem>.itemName', keywords))
@@ -125,9 +125,9 @@ function BlacklistBlocker(rules) {
 		obv.observe(tar, opt);
 		return obv;		// disconnect() can be used elsewhere
 	};
-	let addTriggle = function (rule) {
-		if(!rule.triggle) return;
-		rule.triggle.forEach(function(obj){
+	let addTrigger = function (rule) {
+		if(!rule.trigger) return;
+		rule.trigger.forEach(function(obj){
 			obj.tar = obj.tar || 'window';
 			document.querySelector(obj.tar).addEventListener(obj.event,
 			 ()=>applyRule(rule));
@@ -151,7 +151,7 @@ function BlacklistBlocker(rules) {
 		avaiableRules.forEach(function(rule){
 			applyRule(rule);
 			addWatch(rule);
-			addTriggle(rule);
+			addTrigger(rule);
 		});
 	};
 	let exports = {
