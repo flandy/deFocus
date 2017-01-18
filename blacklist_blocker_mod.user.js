@@ -6,7 +6,7 @@
 // @include	http://faxian.smzdm.com/*
 // @include	/^https?:\/\/(?:www\.)?v2ex\.com\/$/
 /// @include	http://tieba.baidu.com/f?kw=*
-// @include	http://tieba.baidu.com/p/*
+// @include	/^https?:\/\/tieba\.baidu\.com\/p\//
 // @version	1.0
 // @grant	none
 // @run-at	document-start
@@ -42,7 +42,7 @@ let rules = [{
 			return false;
 		}
 	}, {
-		urls : /^http:\/\/tieba\.baidu\.com\/f\?kw=*/i,
+		urls : /^https?:\/\/tieba\.baidu\.com\/f\?kw=*/i,
 		test : true,
 		node : '#pagelet_live\\/pagelet\\/live',
 		hide : function (node) {
@@ -51,7 +51,7 @@ let rules = [{
 			return false;
 		}
 	}, { // ref: p/4735922851
-		urls : /^http:\/\/tieba\.baidu\.com\/p\/*/i,
+		urls : /^https?:\/\/tieba\.baidu\.com\/p\/*/i,
 		node : '.l_post',
 		watch : {tar : '#j_p_postlist'},
 		hide : function (node) {
@@ -63,6 +63,14 @@ let rules = [{
 			}
 			return json.author.user_id == json.content.post_id || 
 				json.content.thread_id == json.content.post_id;
+		}
+	},{
+		urls : /^https?:\/\/tieba\.baidu\.com\/p\/*/i,
+		node : '.l_post:nth-of-type(3)',
+		hide : function (node) {
+			if (xcontains.call(node, ' cc>div.d_post_content', /^#春节表情包#$/))
+				return true;
+			return false;
 		}
 	},
 ];
